@@ -40,3 +40,12 @@ jobs:
       shell: pwsh
       env:
         DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+
+    - name: 'Create test report'
+      if: always()
+      uses: dorny/test-reporter@improvements-and-fixes
+      with:
+        name: Test results ${{ matrix.os }}
+        path: 'src/**/TestResults/*.trx'
+        reporter: 'dotnet-trx'
+        list-tests: 'failed'
