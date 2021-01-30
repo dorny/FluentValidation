@@ -44,7 +44,7 @@ jobs:
 
     - name: 'Create test report'
       if: always()
-      uses: dorny/test-reporter@improvements-and-fixes
+      uses: dorny/test-reporter@annotation-test
       with:
         name: Test results ${{ matrix.os }}
         path: 'src/**/TestResults/*.trx'
