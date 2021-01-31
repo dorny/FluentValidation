@@ -46,7 +46,7 @@ jobs:
       if: failure()
       uses: dorny/test-reporter@annotation-test
       with:
-        name: Test results ${{ matrix.os }}
+        name: Test result ${{ matrix.os }}
         path: 'src/**/TestResults/*.trx'
         reporter: 'dotnet-trx'
         list-tests: 'failed'
