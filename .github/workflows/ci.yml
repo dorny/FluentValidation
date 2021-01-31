@@ -43,7 +43,7 @@ jobs:
         DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
 
     - name: 'Create test report'
-      if: always()
+      if: failure()
       uses: dorny/test-reporter@annotation-test
       with:
         name: Test results ${{ matrix.os }}
