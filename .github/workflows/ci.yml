@@ -43,8 +43,9 @@ jobs:
       env:
         DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
 
-    - name: Upload test results
-      uses: actions/upload-artifact@v2
+    - uses: dorny/test-reporter@improve-report
       with:
+        artifact: /test-results-(.*)/
         name: test-results-${{ matrix.os }}
         path: src/**/TestResults/*.trx
+        reporter: dotnet-trx
