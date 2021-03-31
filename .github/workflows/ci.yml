@@ -43,7 +43,7 @@ jobs:
 
     - name: Create test report
       if: success() || failure()
-      uses: dorny/test-reporter@improve-report
+      uses: dorny/test-reporter@dev
       with:
         name: Test results (${{ matrix.os }})
         path: src/**/TestResults/*.trx
