@@ -25,19 +25,16 @@ namespace FluentValidation.AspNetCore {
 	using Validators;
 
 	internal class EqualToClientValidator : ClientValidatorBase {
-		EqualValidator EqualValidator {
-			get { return (EqualValidator)Validator; }
-		}
+		IComparisonValidator EqualValidator => (IComparisonValidator)Validator;
 
-		public EqualToClientValidator(PropertyRule rule, IPropertyValidator validator) : base(rule, validator) {
+		public EqualToClientValidator(IValidationRule rule, IRuleComponent component) : base(rule, component) {
 		}
 
 		public override void AddValidation(ClientModelValidationContext context) {
 
 			var propertyToCompare = EqualValidator.MemberToCompare as PropertyInfo;
 
-			if (propertyToCompare != null)
-			{
+			if (propertyToCompare != null) {
 				var cfg = context.ActionContext.HttpContext.RequestServices.GetValidatorConfiguration();
 				// If propertyToCompare is not null then we're comparing to another property.
 				// If propertyToCompare is null then we're either comparing against a literal value, a field or a method call.
@@ -53,13 +50,10 @@ namespace FluentValidation.AspNetCore {
 
 				string messageTemplate;
 				try {
-					messageTemplate = EqualValidator.Options.GetErrorMessageTemplate(null);
-				}
-				catch (FluentValidationMessageFormatException) {
-					messageTemplate = cfg.LanguageManager.GetStringForValidator<EqualValidator>();
+					messageTemplate = Component.GetUnformattedErrorMessage();
 				}
 				catch (NullReferenceException) {
-					messageTemplate = cfg.LanguageManager.GetStringForValidator<EqualValidator>();
+					messageTemplate = cfg.LanguageManager.GetString("EqualValidator");
 				}
 				string message = formatter.BuildMessage(messageTemplate);
 				MergeAttribute(context.Attributes, "data-val", "true");

@@ -4,10 +4,12 @@ on:
   push:
     branches:
     - main
+    - 9.x
   pull_request:
     branches:
       - main
-      - net5
+      - 9.x
+      - 10.x
 
 jobs:
   build:

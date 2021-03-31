@@ -24,25 +24,23 @@ namespace FluentValidation.Validators {
 	using FluentValidation.Internal;
 	using Resources;
 
-	public class EnumValidator : PropertyValidator {
-		private readonly Type _enumType;
+	public class EnumValidator<T, TProperty> : PropertyValidator<T,TProperty> {
+		private readonly Type _enumType = typeof(TProperty);
 
-		public EnumValidator(Type enumType) {
-			this._enumType = enumType;
-		}
+		public override string Name => "EnumValidator";
 
-		protected override bool IsValid(PropertyValidatorContext context) {
-			if (context.PropertyValue == null) return true;
+		public override bool IsValid(ValidationContext<T> context, TProperty value) {
+			if (value == null) return true;
 
 			var underlyingEnumType = Nullable.GetUnderlyingType(_enumType) ?? _enumType;
 
 			if (!underlyingEnumType.IsEnum) return false;
 
 			if (underlyingEnumType.GetCustomAttribute<FlagsAttribute>() != null) {
-				return IsFlagsEnumDefined(underlyingEnumType, context.PropertyValue);
+				return IsFlagsEnumDefined(underlyingEnumType, value);
 			}
 
-			return Enum.IsDefined(underlyingEnumType, context.PropertyValue);
+			return Enum.IsDefined(underlyingEnumType, value);
 		}
 
 		private static bool IsFlagsEnumDefined(Type enumType, object value) {
@@ -113,8 +111,8 @@ namespace FluentValidation.Validators {
 			return false;
 		}
 
-		protected override string GetDefaultMessageTemplate() {
-			return Localized(nameof(EnumValidator));
+		protected override string GetDefaultMessageTemplate(string errorCode) {
+			return Localized(errorCode, Name);
 		}
 	}
 }

@@ -281,7 +281,7 @@ namespace FluentValidation.Tests {
 			validator.RuleFor(x => x.Surname).NotNull();
 
 #pragma warning disable 618
-			var result = validator.Validate(new Person {Id = 5}, ruleSet : "foo");
+			var result = validator.Validate(new Person {Id = 5}, v => v.IncludeRuleSets("foo"));
 #pragma warning restore 618
 			result.Errors.Count.ShouldEqual(1);
 			result.Errors.Single().PropertyName.ShouldEqual("Forename");
@@ -297,9 +297,7 @@ namespace FluentValidation.Tests {
 			});
 			validator.RuleFor(x => x.Surname).NotNull();
 
-#pragma warning disable 618
-			var result = await validator.ValidateAsync(new Person {Id = 5}, ruleSet: "foo");
-#pragma warning restore 618
+			var result = await validator.ValidateAsync(new Person {Id = 5}, v => v.IncludeRuleSets("foo"));
 			result.Errors.Count.ShouldEqual(1);
 			result.Errors.Single().PropertyName.ShouldEqual("Forename");
 		}
@@ -312,9 +310,7 @@ namespace FluentValidation.Tests {
 
 			validator.RuleFor(x => x.Surname).NotNull();
 
-#pragma warning disable 618
-			var result = validator.Validate(new Person {Id = 5}, ruleSet : "foo");
-#pragma warning restore 618
+			var result = validator.Validate(new Person {Id = 5}, v => v.IncludeRuleSets("foo"));
 			result.Errors.Count.ShouldEqual(1);
 			result.Errors.Single().PropertyName.ShouldEqual("Forename");
 		}
@@ -327,9 +323,7 @@ namespace FluentValidation.Tests {
 
 			validator.RuleFor(x => x.Surname).NotNull();
 
-#pragma warning disable 618
-			var result = await validator.ValidateAsync(new Person {Id = 5}, ruleSet: "foo");
-#pragma warning restore 618
+			var result = await validator.ValidateAsync(new Person {Id = 5}, v => v.IncludeRuleSets("foo"));
 			result.Errors.Count.ShouldEqual(1);
 			result.Errors.Single().PropertyName.ShouldEqual("Forename");
 		}
@@ -590,6 +584,26 @@ namespace FluentValidation.Tests {
 			result1.Errors.Single().PropertyName.ShouldEqual("Surname");
 			var result2 = await validator.ValidateAsync(new Person {Age = 9});
 			result2.Errors.Single().PropertyName.ShouldEqual("Forename");
+		}
+
+		[Fact]
+		public void Nested_when_inside_otherwise() {
+			var validator = new InlineValidator<Person>();
+			validator.When(x => x.Id == 1, () => {
+				validator.RuleFor(x => x.Forename).NotNull();
+			}).Otherwise(() => {
+				validator.When(x => x.Age > 18, () => {
+					validator.RuleFor(x => x.Email).NotNull();
+				});
+			});
+
+			var result = validator.Validate(new Person() {Id = 1});
+			result.Errors.Count.ShouldEqual(1);
+			result.Errors[0].PropertyName.ShouldEqual("Forename");
+
+			result = validator.Validate(new Person() {Id = 2, Age = 20});
+			result.Errors.Count.ShouldEqual(1);
+			result.Errors[0].PropertyName.ShouldEqual("Email");
 		}
 
 		[Fact]

@@ -24,17 +24,9 @@ namespace FluentValidation.Validators {
 	using Resources;
 	using Results;
 
-	public abstract class NoopPropertyValidator : IPropertyValidator {
-		public abstract IEnumerable<ValidationFailure> Validate(PropertyValidatorContext context);
-
-		public virtual Task<IEnumerable<ValidationFailure>> ValidateAsync(PropertyValidatorContext context, CancellationToken cancellation) {
-			return Task.FromResult(Validate(context));
+	public abstract class NoopPropertyValidator<T,TProperty> : PropertyValidator<T,TProperty> {
+		public override bool IsValid(ValidationContext<T> context, TProperty value) {
+			return true;
 		}
-
-		public virtual bool ShouldValidateAsynchronously(IValidationContext context) {
-			return false;
-		}
-
-		public PropertyValidatorOptions Options { get; } = new PropertyValidatorOptions();
 	}
 }

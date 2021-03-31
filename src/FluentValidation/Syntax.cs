@@ -18,7 +18,6 @@
 
 namespace FluentValidation {
 	using System;
-	using System.Collections.Generic;
 	using Internal;
 	using Validators;
 
@@ -27,16 +26,7 @@ namespace FluentValidation {
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	/// <typeparam name="TProperty"></typeparam>
-	public interface IRuleBuilderInitial<T, out TProperty> : IRuleBuilder<T, TProperty>, IConfigurable<PropertyRule, IRuleBuilderInitial<T, TProperty>> {
-
-		/// <summary>
-		/// Transforms the property value before validation occurs.
-		/// </summary>
-		/// <typeparam name="TNew"></typeparam>
-		/// <param name="transformationFunc"></param>
-		/// <returns></returns>
-		[Obsolete("Use Transform(x => x.Property, transformer) at the root level instead. This method will be removed in FluentValidation 10.")]
-		IRuleBuilderInitial<T, TNew> Transform<TNew>(Func<TProperty, TNew> transformationFunc);
+	public interface IRuleBuilderInitial<T, out TProperty> : IRuleBuilder<T, TProperty> {
 	}
 
 	/// <summary>
@@ -45,12 +35,20 @@ namespace FluentValidation {
 	/// <typeparam name="T"></typeparam>
 	/// <typeparam name="TProperty"></typeparam>
 	public interface IRuleBuilder<T, out TProperty> {
+
 		/// <summary>
 		/// Associates a validator with this the property for this rule builder.
 		/// </summary>
 		/// <param name="validator">The validator to set</param>
 		/// <returns></returns>
-		IRuleBuilderOptions<T, TProperty> SetValidator(IPropertyValidator validator);
+		IRuleBuilderOptions<T, TProperty> SetValidator(IPropertyValidator<T, TProperty> validator);
+
+		/// <summary>
+		/// Associates an async validator with this the property for this rule builder.
+		/// </summary>
+		/// <param name="validator">The validator to set</param>
+		/// <returns></returns>
+		IRuleBuilderOptions<T, TProperty> SetAsyncValidator(IAsyncPropertyValidator<T, TProperty> validator);
 
 		/// <summary>
 		/// Associates an instance of IValidator with the current property rule.
@@ -82,7 +80,19 @@ namespace FluentValidation {
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	/// <typeparam name="TProperty"></typeparam>
-	public interface IRuleBuilderOptions<T, out TProperty> : IRuleBuilder<T, TProperty>, IConfigurable<PropertyRule, IRuleBuilderOptions<T, TProperty>> {
+	public interface IRuleBuilderOptions<T, out TProperty> : IRuleBuilder<T, TProperty> {
+		/// <summary>
+		/// Creates a scope for declaring dependent rules.
+		/// </summary>
+		IRuleBuilderOptions<T, TProperty> DependentRules(Action action);
+	}
+
+	/// <summary>
+	/// Rule builder (for validators that only support conditions, but no other options)
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	/// <typeparam name="TProperty"></typeparam>
+	public interface IRuleBuilderOptionsConditions<T, out TProperty> : IRuleBuilder<T, TProperty> {
 	}
 
 	/// <summary>
@@ -90,15 +100,7 @@ namespace FluentValidation {
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	/// <typeparam name="TElement"></typeparam>
-	public interface IRuleBuilderInitialCollection<T, TElement> : IRuleBuilder<T, TElement>, IConfigurable<CollectionPropertyRule<T, TElement>, IRuleBuilderInitialCollection<T, TElement>> {
-
-		/// <summary>
-		/// Transforms the collection element value before validation occurs.
-		/// </summary>
-		/// <param name="transformationFunc"></param>
-		/// <returns></returns>
-		[Obsolete("Use TransformForEach(x => x.Property, transformer) at the root level instead. This method will be removed in FluentValidation 10.")]
-		IRuleBuilderInitial<T, TNew> Transform<TNew>(Func<TElement, TNew> transformationFunc);
+	public interface IRuleBuilderInitialCollection<T, TElement> : IRuleBuilder<T, TElement> {
 	}
 
 	/// <summary>

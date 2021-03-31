@@ -1,5 +1,5 @@
-#region License
-// Copyright (c) .NET Foundation and contributors.
+﻿#region License
+// Copyright (c) .NET Foundation and contributors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,21 +15,21 @@
 //
 // The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 #endregion
-
-namespace FluentValidation.Resources {
-
+namespace FluentValidation {
 	using System;
-	using Validators;
 
 	/// <summary>
-	/// Provides error message templates
+	/// Validator factory implementation that uses the asp.net service provider to consruct validators.
 	/// </summary>
-	[Obsolete("IStringSource is deprecated and will be removed in FluentValidation 10.")]
-	public interface IStringSource {
-		/// <summary>
-		/// Construct the error message template
-		/// </summary>
-		/// <returns>Error message template</returns>
-		string GetString(ICommonContext context);
+	public class ServiceProviderValidatorFactory : ValidatorFactoryBase {
+		private readonly IServiceProvider _serviceProvider;
+
+		public ServiceProviderValidatorFactory(IServiceProvider serviceProvider) {
+			_serviceProvider = serviceProvider;
+		}
+
+		public override IValidator CreateInstance(Type validatorType) {
+			return _serviceProvider.GetService(validatorType) as IValidator;
+		}
 	}
 }

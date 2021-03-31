@@ -206,7 +206,9 @@ namespace FluentValidation.Tests {
 			});
 			testValidator.RuleFor(x => x.Id).NotEqual(0);
 
+#pragma warning disable 618
 			var assertionRoot = testValidator.TestValidate(new Person(), "Names");
+#pragma warning restore 618
 
 			assertionRoot.ShouldHaveValidationErrorFor(x => x.Forename)
 				.WithErrorCode("NotNullValidator");
@@ -432,6 +434,40 @@ namespace FluentValidation.Tests {
 			}
 
 			exceptionCaught.ShouldBeTrue();
+		}
+
+		[Fact]
+		public void Test_custom_state_with_concatenated_string() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).NotNull().WithState(x => "Test" + 123);
+			var result = validator.TestValidate(new Person());
+
+			// String concatenated with integer means a different string reference is created:
+			/*
+				object s1 = "Test" + 123.ToString();
+				object s2 = "Test123";
+				bool check1 = s1 == s2; // False
+			 */
+			// Test to ensure that this scenario is handled properly.
+			result.ShouldHaveValidationErrorFor(x => x.Surname)
+				.WithCustomState("Test123");
+		}
+
+		[Fact]
+		public void Custom_state_comparer_check() {
+			var validator = new InlineValidator<Person>();
+			validator.RuleFor(x => x.Surname).NotNull().WithState(x => "Test" + 123);
+			var result = validator.TestValidate(new Person());
+
+			// Throws without comparer.
+			Assert.Throws<ValidationTestException>(() => {
+				result.ShouldHaveValidationErrorFor(x => x.Surname)
+					.WithCustomState("test123");
+			});
+
+			// Doesn't throw with comparer.
+			result.ShouldHaveValidationErrorFor(x => x.Surname)
+				.WithCustomState("test123", StringComparer.OrdinalIgnoreCase);
 		}
 
 		[Fact]
@@ -776,7 +812,7 @@ namespace FluentValidation.Tests {
 			public string Street { get; set; }
 		}
 
-		public class Address2Validator : AbstractValidator<Address2> {
+		public class Address2Validator : InlineValidator<Address2> {
 			public static string RuleLocationNames = "LocationNames";
 
 			public Address2Validator() {

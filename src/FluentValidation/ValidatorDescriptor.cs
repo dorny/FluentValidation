@@ -28,17 +28,18 @@ namespace FluentValidation {
 	/// Used for providing metadata about a validator.
 	/// </summary>
 	public class ValidatorDescriptor<T> : IValidatorDescriptor {
+
 		/// <summary>
 		/// Rules associated with the validator
 		/// </summary>
-		protected IEnumerable<IValidationRule> Rules { get; private set; }
+		public IEnumerable<IValidationRule> Rules { get; }
 
 		/// <summary>
 		/// Creates a ValidatorDescriptor
 		/// </summary>
-		/// <param name="ruleBuilders"></param>
-		public ValidatorDescriptor(IEnumerable<IValidationRule> ruleBuilders) {
-			Rules = ruleBuilders;
+		/// <param name="rules"></param>
+		public ValidatorDescriptor(IEnumerable<IValidationRule> rules) {
+			Rules = rules;
 		}
 
 		/// <summary>
@@ -48,9 +49,9 @@ namespace FluentValidation {
 		/// <returns></returns>
 		public virtual string GetName(string property) {
 			var nameUsed = Rules
-				.OfType<PropertyRule>()
 				.Where(x => x.PropertyName == property)
-				.Select(x => x.GetDisplayName(null)).FirstOrDefault();
+				.Select(x => x.GetDisplayName(null))
+				.FirstOrDefault();
 
 			return nameUsed;
 		}
@@ -58,12 +59,12 @@ namespace FluentValidation {
 		/// Gets all members with their associated validators
 		/// </summary>
 		/// <returns></returns>
-		public virtual ILookup<string, IPropertyValidator> GetMembersWithValidators() {
-			var query = from rule in Rules.OfType<PropertyRule>()
-						from validator in rule.Validators
-						select new { propertyName = rule.PropertyName, validator };
+		public virtual ILookup<string, (IPropertyValidator Validator, IRuleComponent Options)> GetMembersWithValidators() {
+			var query = from rule in Rules
+						from component in rule.Components
+						select new { propertyName = rule.PropertyName, component };
 
-			return query.ToLookup(x => x.propertyName, x => x.validator);
+			return query.ToLookup(x => x.propertyName, x => (x.component.Validator, x.component));
 		}
 
 		/// <summary>
@@ -71,7 +72,7 @@ namespace FluentValidation {
 		/// </summary>
 		/// <param name="name"></param>
 		/// <returns></returns>
-		public IEnumerable<IPropertyValidator> GetValidatorsForMember(string name) {
+		public IEnumerable<(IPropertyValidator Validator, IRuleComponent Options)> GetValidatorsForMember(string name) {
 			return GetMembersWithValidators()[name];
 		}
 
@@ -81,9 +82,9 @@ namespace FluentValidation {
 		/// <param name="name"></param>
 		/// <returns></returns>
 		public IEnumerable<IValidationRule> GetRulesForMember(string name) {
-			var query = from rule in Rules.OfType<PropertyRule>()
+			var query = from rule in Rules
 						where rule.PropertyName == name
-						select (IValidationRule)rule;
+						select rule;
 
 			return query.ToList();
 		}
@@ -97,7 +98,7 @@ namespace FluentValidation {
 			var member = propertyExpression.GetMember();
 
 			if (member == null) {
-				throw new ArgumentException(string.Format("Cannot retrieve name as expression '{0}' as it does not specify a property.", propertyExpression));
+				throw new ArgumentException($"Cannot retrieve name as expression '{propertyExpression}' as it does not specify a property.");
 			}
 
 			return GetName(member.Name);
@@ -109,21 +110,19 @@ namespace FluentValidation {
 		/// <typeparam name="TValue"></typeparam>
 		/// <param name="accessor"></param>
 		/// <returns></returns>
-		public IEnumerable<IPropertyValidator> GetValidatorsForMember<TValue>(MemberAccessor<T, TValue> accessor)
-		{
-			return from rule in Rules.OfType<PropertyRule>()
-			       where Equals(rule.Member, accessor.Member)
-			       from validator in rule.Validators
-			       select validator;
+		public IEnumerable<(IPropertyValidator Validator, IRuleComponent Options)> GetValidatorsForMember<TValue>(MemberAccessor<T, TValue> accessor) {
+			return from rule in Rules
+				where Equals(rule.Member, accessor.Member)
+				from component in rule.Components
+				select (component.Validator, component);
 		}
-
 
 		/// <summary>
 		/// Gets rules grouped by ruleset
 		/// </summary>
 		/// <returns></returns>
 		public IEnumerable<RulesetMetadata> GetRulesByRuleset() {
-			var query = from rule in Rules.OfType<PropertyRule>()
+			var query = from rule in Rules
 						from ruleset in rule.RuleSets
 						group rule by ruleset
 						into grp
@@ -142,7 +141,7 @@ namespace FluentValidation {
 			/// </summary>
 			/// <param name="name"></param>
 			/// <param name="rules"></param>
-			public RulesetMetadata(string name, IEnumerable<PropertyRule> rules) {
+			public RulesetMetadata(string name, IEnumerable<IValidationRule> rules) {
 				Name = name;
 				Rules = rules;
 			}
@@ -150,12 +149,12 @@ namespace FluentValidation {
 			/// <summary>
 			/// Ruleset name
 			/// </summary>
-			public string Name { get; private set; }
+			public string Name { get; }
 
 			/// <summary>
 			/// Rules in the ruleset
 			/// </summary>
-			public IEnumerable<PropertyRule> Rules { get; private set; }
+			public IEnumerable<IValidationRule> Rules { get; }
 		}
 	}
 }

@@ -25,7 +25,7 @@ namespace FluentValidation.AspNetCore {
 
 	internal class EmailClientValidator : ClientValidatorBase {
 
-		public EmailClientValidator(PropertyRule rule, IPropertyValidator validator) : base(rule, validator) {
+		public EmailClientValidator(IValidationRule rule, IRuleComponent component) : base(rule, component) {
 		}
 
 		public override void AddValidation(ClientModelValidationContext context) {
@@ -34,16 +34,11 @@ namespace FluentValidation.AspNetCore {
 
 			string messageTemplate;
 			try {
-				messageTemplate = Validator.Options.GetErrorMessageTemplate(null);
-			}
-#pragma warning disable 618
-			catch (FluentValidationMessageFormatException) {
-				messageTemplate = cfg.LanguageManager.GetStringForValidator<EmailValidator>();
+				messageTemplate = Component.GetUnformattedErrorMessage();
 			}
 			catch (NullReferenceException) {
-				messageTemplate = cfg.LanguageManager.GetStringForValidator<EmailValidator>();
+				messageTemplate = cfg.LanguageManager.GetString("EmailValidator");
 			}
-#pragma warning restore 618
 
 			string message = formatter.BuildMessage(messageTemplate);
 			MergeAttribute(context.Attributes, "data-val", "true");

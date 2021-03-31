@@ -32,7 +32,7 @@ namespace FluentValidation {
 	/// </summary>
 	/// <typeparam name="T">The type of the object being validated</typeparam>
 	public abstract class AbstractValidator<T> : IValidator<T>, IEnumerable<IValidationRule> {
-		internal TrackingCollection<IValidationRule> Rules { get; } = new TrackingCollection<IValidationRule>();
+		internal TrackingCollection<IValidationRuleInternal<T>> Rules { get; } = new();
 		private Func<CascadeMode> _cascadeMode = () => ValidatorOptions.Global.CascadeMode;
 
 		/// <summary>
@@ -80,7 +80,7 @@ namespace FluentValidation {
 		public virtual ValidationResult Validate(ValidationContext<T> context) {
 			context.Guard("Cannot pass null to Validate.", nameof(context));
 
-			var result = new ValidationResult();
+			var result = new ValidationResult(context.Failures);
 			bool shouldContinue = PreValidate(context, result);
 
 			if (!shouldContinue) {
@@ -90,11 +90,7 @@ namespace FluentValidation {
 			EnsureInstanceNotNull(context.InstanceToValidate);
 
 			foreach (var rule in Rules) {
-				var failures = rule.Validate(context);
-
-				foreach (var validationFailure in failures.Where(failure => failure != null)) {
-					result.Errors.Add(validationFailure);
-				}
+				rule.Validate(context);
 
 				if (CascadeMode == CascadeMode.Stop && result.Errors.Count > 0) {
 					// Bail out if we're "failing-fast".
@@ -122,10 +118,9 @@ namespace FluentValidation {
 		/// <returns>A ValidationResult object containing any validation failures.</returns>
 		public async virtual Task<ValidationResult> ValidateAsync(ValidationContext<T> context, CancellationToken cancellation = new CancellationToken()) {
 			context.Guard("Cannot pass null to Validate", nameof(context));
-			context.RootContextData["__FV_IsAsyncExecution"] = true;
+			context.IsAsync = true;
 
-			var result = new ValidationResult();
-
+			var result = new ValidationResult(context.Failures);
 			bool shouldContinue = PreValidate(context, result);
 
 			if (!shouldContinue) {
@@ -136,11 +131,7 @@ namespace FluentValidation {
 
 			foreach (var rule in Rules) {
 				cancellation.ThrowIfCancellationRequested();
-				var failures = await rule.ValidateAsync(context, cancellation);
-
-				foreach (var failure in failures.Where(f => f != null)) {
-					result.Errors.Add(failure);
-				}
+				await rule.ValidateAsync(context, cancellation);
 
 				if (CascadeMode == CascadeMode.Stop && result.Errors.Count > 0) {
 					// Bail out if we're "failing-fast".
@@ -166,14 +157,6 @@ namespace FluentValidation {
 		}
 
 		/// <summary>
-		/// Adds a rule to the current validator.
-		/// </summary>
-		/// <param name="rule"></param>
-		protected void AddRule(IValidationRule rule) {
-			Rules.Add(rule);
-		}
-
-		/// <summary>
 		/// Creates a <see cref="IValidatorDescriptor" /> that can be used to obtain metadata about the current validator.
 		/// </summary>
 		public virtual IValidatorDescriptor CreateDescriptor() {
@@ -196,10 +179,9 @@ namespace FluentValidation {
 		/// <returns>an IRuleBuilder instance on which validators can be defined</returns>
 		public IRuleBuilderInitial<T, TProperty> RuleFor<TProperty>(Expression<Func<T, TProperty>> expression) {
 			expression.Guard("Cannot pass null to RuleFor", nameof(expression));
-			var rule = PropertyRule.Create(expression, () => CascadeMode);
-			AddRule(rule);
-			var ruleBuilder = new RuleBuilder<T, TProperty>(rule, this);
-			return ruleBuilder;
+			var rule = PropertyRule<T, TProperty>.Create(expression, () => CascadeMode);
+			Rules.Add(rule);
+			return new RuleBuilder<T, TProperty>(rule, this);
 		}
 
 		/// <summary>
@@ -215,10 +197,9 @@ namespace FluentValidation {
 		/// <returns>an IRuleBuilder instance on which validators can be defined</returns>
 		public IRuleBuilderInitial<T, TTransformed> Transform<TProperty, TTransformed>(Expression<Func<T, TProperty>> from, Func<TProperty, TTransformed> to) {
 			from.Guard("Cannot pass null to Transform", nameof(from));
-			var rule = PropertyRule.Create(from, to, () => CascadeMode);
-			AddRule(rule);
-			var ruleBuilder = new RuleBuilder<T, TTransformed>(rule, this);
-			return ruleBuilder;
+			var rule = PropertyRule<T, TTransformed>.Create(from, to, () => CascadeMode);
+			Rules.Add(rule);
+			return new RuleBuilder<T, TTransformed>(rule, this);
 		}
 
 		/// <summary>
@@ -234,11 +215,11 @@ namespace FluentValidation {
 		/// <returns>an IRuleBuilder instance on which validators can be defined</returns>
 		public IRuleBuilderInitial<T, TTransformed> Transform<TProperty, TTransformed>(Expression<Func<T, TProperty>> from, Func<T, TProperty, TTransformed> to) {
 			from.Guard("Cannot pass null to Transform", nameof(from));
-			var rule = PropertyRule.Create(from, to, () => CascadeMode);
-			AddRule(rule);
-			var ruleBuilder = new RuleBuilder<T, TTransformed>(rule, this);
-			return ruleBuilder;
+			var rule = PropertyRule<T, TTransformed>.Create(from, to, () => CascadeMode);
+			Rules.Add(rule);
+			return new RuleBuilder<T, TTransformed>(rule, this);
 		}
+
 
 		/// <summary>
 		/// Invokes a rule for each item in the collection.
@@ -249,9 +230,8 @@ namespace FluentValidation {
 		public IRuleBuilderInitialCollection<T, TElement> RuleForEach<TElement>(Expression<Func<T, IEnumerable<TElement>>> expression) {
 			expression.Guard("Cannot pass null to RuleForEach", nameof(expression));
 			var rule = CollectionPropertyRule<T, TElement>.Create(expression, () => CascadeMode);
-			AddRule(rule);
-			var ruleBuilder = new RuleBuilder<T, TElement>(rule, this);
-			return ruleBuilder;
+			Rules.Add(rule);
+			return new RuleBuilder<T, TElement>(rule, this);
 		}
 
 		/// <summary>
@@ -266,8 +246,7 @@ namespace FluentValidation {
 			expression.Guard("Cannot pass null to RuleForEach", nameof(expression));
 			var rule = CollectionPropertyRule<T, TTransformed>.CreateTransformed<TElement>(expression, to, () => CascadeMode);
 			Rules.Add(rule);
-			var ruleBuilder = new RuleBuilder<T, TTransformed>(rule, this);
-			return ruleBuilder;
+			return new RuleBuilder<T, TTransformed>(rule, this);
 		}
 
 		/// <summary>
@@ -282,8 +261,7 @@ namespace FluentValidation {
 			expression.Guard("Cannot pass null to RuleForEach", nameof(expression));
 			var rule = CollectionPropertyRule<T, TTransformed>.CreateTransformed<TElement>(expression, to, () => CascadeMode);
 			Rules.Add(rule);
-			var ruleBuilder = new RuleBuilder<T, TTransformed>(rule, this);
-			return ruleBuilder;
+			return new RuleBuilder<T, TTransformed>(rule, this);
 		}
 
 		/// <summary>
@@ -386,7 +364,7 @@ namespace FluentValidation {
 		public void Include(IValidator<T> rulesToInclude) {
 			rulesToInclude.Guard("Cannot pass null to Include", nameof(rulesToInclude));
 			var rule = IncludeRule<T>.Create(rulesToInclude, () => CascadeMode);
-			AddRule(rule);
+			Rules.Add(rule);
 		}
 
 		/// <summary>
@@ -395,7 +373,7 @@ namespace FluentValidation {
 		public void Include<TValidator>(Func<T, TValidator> rulesToInclude) where TValidator : IValidator<T> {
 			rulesToInclude.Guard("Cannot pass null to Include", nameof(rulesToInclude));
 			var rule = IncludeRule<T>.Create(rulesToInclude, () => CascadeMode);
-			AddRule(rule);
+			Rules.Add(rule);
 		}
 
 		/// <summary>

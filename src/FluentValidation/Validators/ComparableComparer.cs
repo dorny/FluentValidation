@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 // Copyright (c) .NET Foundation and contributors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,21 +16,20 @@
 // The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 #endregion
 
-namespace FluentValidation.Internal {
+namespace FluentValidation.Validators {
 	using System;
-	using System.ComponentModel;
+	using System.Collections.Generic;
+	using System.Drawing;
 
-	/// <summary>
-	/// Represents an object that is configurable.
-	/// </summary>
-	/// <typeparam name="TConfiguration">Type of object being configured</typeparam>
-	/// <typeparam name="TNext">Return type</typeparam>
-	public interface IConfigurable<TConfiguration, out TNext> {
-		/// <summary>
-		/// Configures the current object.
-		/// </summary>
-		/// <param name="configurator">Action to configure the object.</param>
-		/// <returns></returns>
-		TNext Configure(Action<TConfiguration> configurator);
+	internal class ComparableComparer<T> : IComparer<T> where T : IComparable<T> {
+		internal static ComparableComparer<T> Instance { get; }
+
+		static ComparableComparer() {
+			Instance = new ComparableComparer<T>();
+		}
+
+		public int Compare(T x, T y) {
+			return x.CompareTo(y);
+		}
 	}
 }

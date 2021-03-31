@@ -60,7 +60,7 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Min_and_max_properties_should_be_set() {
-			var validator = new ExactLengthValidator(5);
+			var validator = new ExactLengthValidator<Person>(5);
 			validator.Min.ShouldEqual(5);
 			validator.Max.ShouldEqual(5);
 		}
@@ -75,9 +75,6 @@ namespace FluentValidation.Tests {
 			error.ShouldNotBeNull();
 			error.PropertyName.ShouldEqual("Surname");
 			error.AttemptedValue.ShouldEqual("test");
-#pragma warning disable 618
-			error.FormattedMessageArguments.Length.ShouldEqual(0);
-#pragma warning restore 618
 
 			error.FormattedMessagePlaceholderValues.Count.ShouldEqual(5);
 			error.FormattedMessagePlaceholderValues.ContainsKey("PropertyName").ShouldBeTrue();

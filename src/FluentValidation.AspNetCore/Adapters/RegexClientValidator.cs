@@ -25,23 +25,20 @@ namespace FluentValidation.AspNetCore {
 
 	internal class RegexClientValidator : ClientValidatorBase {
 
-		public RegexClientValidator(PropertyRule rule, IPropertyValidator validator)
-			: base(rule, validator) {
+		public RegexClientValidator(IValidationRule rule, IRuleComponent component)
+			: base(rule, component) {
 		}
 
 		public override void AddValidation(ClientModelValidationContext context) {
 			var cfg = context.ActionContext.HttpContext.RequestServices.GetValidatorConfiguration();
-			var regexVal = (RegularExpressionValidator)Validator;
+			var regexVal = (IRegularExpressionValidator)Validator;
 			var formatter = cfg.MessageFormatterFactory().AppendPropertyName(Rule.GetDisplayName(null));
 			string messageTemplate;
 			try {
-				messageTemplate = regexVal.Options.GetErrorMessageTemplate(null);
-			}
-			catch (FluentValidationMessageFormatException) {
-				messageTemplate = cfg.LanguageManager.GetStringForValidator<RegularExpressionValidator>();
+				messageTemplate = Component.GetUnformattedErrorMessage();
 			}
 			catch (NullReferenceException) {
-				messageTemplate = cfg.LanguageManager.GetStringForValidator<RegularExpressionValidator>();
+				messageTemplate = cfg.LanguageManager.GetString("RegularExpressionValidator");
 			}
 
 			string message = formatter.BuildMessage(messageTemplate);

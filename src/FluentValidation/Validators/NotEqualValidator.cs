@@ -23,26 +23,28 @@ namespace FluentValidation.Validators {
 	using System.Reflection;
 	using Resources;
 
-	public class NotEqualValidator : PropertyValidator, IComparisonValidator {
-		private readonly IEqualityComparer _comparer;
-		private readonly Func<object, object> _func;
+	public class NotEqualValidator<T,TProperty> : PropertyValidator<T,TProperty>, IComparisonValidator {
+		private readonly IEqualityComparer<TProperty> _comparer;
+		private readonly Func<T, TProperty> _func;
 		private readonly string _memberDisplayName;
 
-		public NotEqualValidator(Func<object, object> func, MemberInfo memberToCompare, string memberDisplayName, IEqualityComparer equalityComparer = null) {
+		public override string Name => "NotEqualValidator";
+
+		public NotEqualValidator(Func<T, TProperty> func, MemberInfo memberToCompare, string memberDisplayName, IEqualityComparer<TProperty> equalityComparer = null) {
 			_func = func;
 			_comparer = equalityComparer;
 			_memberDisplayName = memberDisplayName;
 			MemberToCompare = memberToCompare;
 		}
 
-		public NotEqualValidator(object comparisonValue, IEqualityComparer equalityComparer = null) {
+		public NotEqualValidator(TProperty comparisonValue, IEqualityComparer<TProperty> equalityComparer = null) {
 			ValueToCompare = comparisonValue;
 			_comparer = equalityComparer;
 		}
 
-		protected override bool IsValid(PropertyValidatorContext context) {
+		public override bool IsValid(ValidationContext<T> context, TProperty value) {
 			var comparisonValue = GetComparisonValue(context);
-			bool success = !Compare(comparisonValue, context.PropertyValue);
+			bool success = !Compare(comparisonValue, value);
 
 			if (!success) {
 				context.MessageFormatter.AppendArgument("ComparisonValue", comparisonValue);
@@ -53,7 +55,7 @@ namespace FluentValidation.Validators {
 			return true;
 		}
 
-		private object GetComparisonValue(PropertyValidatorContext context) {
+		private TProperty GetComparisonValue(ValidationContext<T> context) {
 			if (_func != null) {
 				return _func(context.InstanceToValidate);
 			}
@@ -64,9 +66,11 @@ namespace FluentValidation.Validators {
 		public Comparison Comparison => Comparison.NotEqual;
 
 		public MemberInfo MemberToCompare { get; private set; }
-		public object ValueToCompare { get; private set; }
+		public TProperty ValueToCompare { get; private set; }
 
-		protected bool Compare(object comparisonValue, object propertyValue) {
+		object IComparisonValidator.ValueToCompare => ValueToCompare;
+
+		protected bool Compare(TProperty comparisonValue, TProperty propertyValue) {
 			if(_comparer != null) {
 				return _comparer.Equals(comparisonValue, propertyValue);
 			}
@@ -74,8 +78,8 @@ namespace FluentValidation.Validators {
 			return Equals(comparisonValue, propertyValue);
 		}
 
-		protected override string GetDefaultMessageTemplate() {
-			return Localized(nameof(NotEqualValidator));
+		protected override string GetDefaultMessageTemplate(string errorCode) {
+			return Localized(errorCode, Name);
 		}
 	}
 }

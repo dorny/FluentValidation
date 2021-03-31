@@ -21,53 +21,13 @@ namespace FluentValidation.Internal {
 	using System.Collections.Generic;
 	using System.Linq.Expressions;
 	using System.Reflection;
-	using System.Runtime.CompilerServices;
 	using System.Text;
-	using System.Threading;
-	using System.Threading.Tasks;
-	using Validators;
+	using Resources;
 
 	/// <summary>
 	/// Useful extensions
 	/// </summary>
 	public static class Extensions {
-		internal static void Guard(this object obj, string message, string paramName) {
-			if (obj == null) {
-				throw new ArgumentNullException(paramName, message);
-			}
-		}
-
-		internal static void Guard(this string str, string message, string paramName) {
-			if (str == null) {
-				throw new ArgumentNullException(paramName, message);
-			}
-
-			if (string.IsNullOrEmpty(str)) {
-				throw new ArgumentException(message, paramName);
-			}
-		}
-
-		/// <summary>
-		/// Checks if the expression is a parameter expression
-		/// </summary>
-		/// <param name="expression"></param>
-		/// <returns></returns>
-		public static bool IsParameterExpression(this LambdaExpression expression) {
-			return expression.Body.NodeType == ExpressionType.Parameter;
-		}
-
-		/// <summary>
-		/// Gets a MemberInfo from a member expression.
-		/// </summary>
-		public static MemberInfo GetMember(this LambdaExpression expression) {
-			var memberExp = RemoveUnary(expression.Body) as MemberExpression;
-
-			if (memberExp == null) {
-				return null;
-			}
-
-			return memberExp.Member;
-		}
 
 		/// <summary>
 		/// Gets a MemberInfo from a member expression.
@@ -99,7 +59,6 @@ namespace FluentValidation.Internal {
 			return memberExp.Member;
 		}
 
-
 		private static Expression RemoveUnary(Expression toUnwrap) {
 			if (toUnwrap is UnaryExpression) {
 				return ((UnaryExpression)toUnwrap).Operand;
@@ -107,111 +66,6 @@ namespace FluentValidation.Internal {
 
 			return toUnwrap;
 		}
-
-		/// <summary>
-		/// Splits pascal case, so "FooBar" would become "Foo Bar"
-		/// </summary>
-		public static string SplitPascalCase(this string input) {
-			if (string.IsNullOrEmpty(input))
-				return input;
-
-			var retVal = new StringBuilder(input.Length + 5);
-
-			for (int i = 0; i < input.Length; ++i) {
-				var currentChar = input[i];
-				if (char.IsUpper(currentChar)) {
-					if ((i > 1 && !char.IsUpper(input[i - 1]))
-							|| (i + 1 < input.Length && !char.IsUpper(input[i + 1])))
-						retVal.Append(' ');
-				}
-
-				retVal.Append(currentChar);
-			}
-
-			return retVal.ToString().Trim();
-		}
-
-		/// <summary>
-		/// Helper method to construct a constant expression from a constant.
-		/// </summary>
-		/// <typeparam name="T">Type of object being validated</typeparam>
-		/// <typeparam name="TProperty">Type of property being validated</typeparam>
-		/// <param name="valueToCompare">The value being compared</param>
-		/// <returns></returns>
-		internal static Expression<Func<T, TProperty>> GetConstantExpressionFromConstant<T, TProperty>(TProperty valueToCompare) {
-			Expression constant = Expression.Constant(valueToCompare, typeof(TProperty));
-			ParameterExpression parameter = Expression.Parameter(typeof(T), "t");
-			return Expression.Lambda<Func<T, TProperty>>(constant, parameter);
-		}
-
-		internal static void ForEach<T>(this IEnumerable<T> source, Action<T> action) {
-			foreach (var item in source) {
-				action(item);
-			}
-		}
-
-#pragma warning disable 1591
-		public static Func<object, object> CoerceToNonGeneric<T, TProperty>(this Func<T, TProperty> func) {
-			return x => func((T)x);
-		}
-
-		public static Func<object, bool> CoerceToNonGeneric<T>(this Func<T, bool> func) {
-			return x => func((T)x);
-		}
-
-		public static Func<object, CancellationToken, Task<bool>> CoerceToNonGeneric<T>(this Func<T, CancellationToken, Task<bool>> func) {
-			return (x, ct) => func((T)x, ct);
-		}
-
-
-		public static Func<object, Task<bool>> CoerceToNonGeneric<T>(this Func<T, Task<bool>> func) {
-			return x => func((T)x);
-		}
-
-		public static Func<object, int> CoerceToNonGeneric<T>(this Func<T, int> func) {
-			return x => func((T)x);
-		}
-
-		public static Func<object, long> CoerceToNonGeneric<T>(this Func<T, long> func) {
-			return x => func((T)x);
-		}
-
-		public static Func<object, string> CoerceToNonGeneric<T>(this Func<T, string> func) {
-			return x => func((T)x);
-		}
-
-		public static Func<object, System.Text.RegularExpressions.Regex> CoerceToNonGeneric<T>(this Func<T, System.Text.RegularExpressions.Regex> func) {
-			return x => func((T)x);
-		}
-
-		public static Action<object> CoerceToNonGeneric<T>(this Action<T> action) {
-			return x => action((T)x);
-		}
-#pragma warning restore 1591
-
-		/// <summary>
-		/// Checks whether this is an asynchronous validation run.
-		/// </summary>
-		/// <param name="ctx"></param>
-		/// <returns></returns>
-		public static bool IsAsync(this IValidationContext ctx) {
-			if (ctx.RootContextData.ContainsKey("__FV_IsAsyncExecution")) {
-				return (ctx.RootContextData["__FV_IsAsyncExecution"] as bool?).GetValueOrDefault();
-			}
-
-			return false;
-		}
-
-		internal static T GetOrAdd<T>(this IDictionary<string, object> dict, string key, Func<T> value) {
-			if (dict.TryGetValue(key, out var tmp)) {
-				if (tmp is T result) {
-					return result;
-				}
-			}
-
-			var val = value();
-			dict[key] = val;
-			return val;
-		}
 	}
+
 }

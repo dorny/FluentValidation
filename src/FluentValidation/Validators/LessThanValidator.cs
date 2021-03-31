@@ -19,28 +19,32 @@
 namespace FluentValidation.Validators {
 	using System;
 	using System.Reflection;
-	using Internal;
-	using Resources;
 
-	public class LessThanValidator : AbstractComparisonValidator {
-		public LessThanValidator(IComparable value) : base(value) {
+	public class LessThanValidator<T, TProperty> : AbstractComparisonValidator<T, TProperty> where TProperty : IComparable<TProperty>, IComparable {
+		public override string Name => "LessThanValidator";
+
+		public LessThanValidator(TProperty value) : base(value) {
 		}
 
-		public LessThanValidator(Func<object, object> valueToCompareFunc, MemberInfo member, string memberDisplayName)
+		public LessThanValidator(Func<T, TProperty> valueToCompareFunc, MemberInfo member, string memberDisplayName)
 			: base(valueToCompareFunc, member, memberDisplayName) {
 		}
 
-		public override bool IsValid(IComparable value, IComparable valueToCompare) {
+		public LessThanValidator(Func<T, (bool HasValue, TProperty Value)> valueToCompareFunc, MemberInfo member, string memberDisplayName)
+			: base(valueToCompareFunc, member, memberDisplayName) {
+		}
+
+		public override bool IsValid(TProperty value, TProperty valueToCompare) {
 			if (valueToCompare == null)
 				return false;
 
 			return value.CompareTo(valueToCompare) < 0;
 		}
 
-		public override Comparison Comparison => Validators.Comparison.LessThan;
+		public override Comparison Comparison => Comparison.LessThan;
 
-		protected override string GetDefaultMessageTemplate() {
-			return Localized(nameof(LessThanValidator));
+		protected override string GetDefaultMessageTemplate(string errorCode) {
+			return Localized(errorCode, Name);
 		}
 	}
 }

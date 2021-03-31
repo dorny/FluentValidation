@@ -1,5 +1,5 @@
-﻿#region License
-// Copyright (c) .NET Foundation and contributors
+#region License
+// Copyright (c) .NET Foundation and contributors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,21 +15,22 @@
 //
 // The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
 #endregion
-namespace FluentValidation.AspNetCore {
-	using System;
 
-	/// <summary>
-	/// Validator factory implementation that uses the asp.net service provider to consruct validators.
-	/// </summary>
-	public class ServiceProviderValidatorFactory : ValidatorFactoryBase {
-		private readonly IServiceProvider _serviceProvider;
+namespace FluentValidation {
+	using System.Collections.Generic;
+	using System.Threading;
+	using System.Threading.Tasks;
+	using Internal;
 
-		public ServiceProviderValidatorFactory(IServiceProvider serviceProvider) {
-			_serviceProvider = serviceProvider;
-		}
+	internal interface IValidationRuleInternal<T> : IValidationRule<T> {
+		void Validate(ValidationContext<T> context);
 
-		public override IValidator CreateInstance(Type validatorType) {
-			return _serviceProvider.GetService(validatorType) as IValidator;
-		}
+		Task ValidateAsync(ValidationContext<T> context, CancellationToken cancellation);
+
+		void AddDependentRules(IEnumerable<IValidationRuleInternal<T>> rules);
+	}
+
+	internal interface IValidationRuleInternal<T, TProperty> : IValidationRule<T, TProperty>, IValidationRuleInternal<T> {
+		new List<RuleComponent<T,TProperty>> Components { get; }
 	}
 }

@@ -23,10 +23,11 @@ namespace FluentValidation.Validators {
 	using FluentValidation.Internal;
 	using Resources;
 
-	public class StringEnumValidator : PropertyValidator {
+	public class StringEnumValidator<T> : PropertyValidator<T, string> {
 		private readonly Type _enumType;
-
 		private readonly bool _caseSensitive;
+
+		public override string Name => "StringEnumValidator";
 
 		public StringEnumValidator(Type enumType, bool caseSensitive) {
 			if (enumType == null) throw new ArgumentNullException(nameof(enumType));
@@ -37,12 +38,9 @@ namespace FluentValidation.Validators {
 			_caseSensitive = caseSensitive;
 		}
 
-		protected override bool IsValid(PropertyValidatorContext context) {
-			if (context.PropertyValue == null) return true;
-
-			string value = context.PropertyValue.ToString();
+		public override bool IsValid(ValidationContext<T> context, string value) {
+			if (value == null) return true;
 			var comparison = _caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-
 			return Enum.GetNames(_enumType).Any(n => n.Equals(value, comparison));
 		}
 
@@ -53,9 +51,9 @@ namespace FluentValidation.Validators {
 			}
 		}
 
-		protected override string GetDefaultMessageTemplate() {
+		protected override string GetDefaultMessageTemplate(string errorCode) {
 			// Intentionally the same message as EnumValidator.
-			return Localized(nameof(EnumValidator));
+			return Localized(errorCode, "EnumValidator");
 		}
 	}
 }

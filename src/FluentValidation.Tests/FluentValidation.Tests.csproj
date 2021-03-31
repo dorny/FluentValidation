@@ -1,10 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net461;netcoreapp2.1;netcoreapp3.1;net5.0</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
     <AssemblyName>FluentValidation.Tests</AssemblyName>
     <RootNamespace>FluentValidation.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <OutputType>Library</OutputType>
+    <SignAssembly>True</SignAssembly>
+    <DelaySign>False</DelaySign>
   </PropertyGroup>
   <ItemGroup>
     <None Update="xunit.runner.json">
@@ -30,16 +32,17 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>TestMessages.resx</DependentUpon>
     </Compile>
+    <Compile Include="..\FluentValidation\Internal\ExtensionsInternal.cs">
+      <Link>ExtensionsInternal.cs</Link>
+    </Compile>
+    <Compile Include="..\FluentValidation\Internal\TrackingCollection.cs">
+      <Link>TrackingCollection.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Update="TestMessages.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>TestMessages.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\FluentValidation\Internal\TrackingCollection.cs">
-      <Link>TestExtensions.cs</Link>
-    </Compile>
   </ItemGroup>
 </Project>

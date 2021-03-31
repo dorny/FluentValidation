@@ -20,8 +20,6 @@ namespace FluentValidation.Tests {
 	using System.Linq;
 	using System.Threading.Tasks;
 	using Xunit;
-	using Results;
-
 
 	public class CustomValidatorTester {
 		private TestValidator validator;
@@ -87,9 +85,7 @@ namespace FluentValidation.Tests {
 				});
 			});
 
-#pragma warning disable 618
-			var result = validator.Validate(new Person(), ruleSet: "foo");
-#pragma warning restore 618
+			var result = validator.Validate(new Person(), v => v.IncludeRuleSets("foo"));
 			result.Errors.Count.ShouldEqual(1);
 		}
 
@@ -111,9 +107,7 @@ namespace FluentValidation.Tests {
 				});
 			});
 
-#pragma warning disable 618
-			var result = await validator.ValidateAsync(new Person(), ruleSet: "foo");
-#pragma warning restore 618
+			var result = await validator.ValidateAsync(new Person(), v => v.IncludeRuleSets("foo"));
 			result.Errors.Count.ShouldEqual(1);
 		}
 
@@ -166,10 +160,47 @@ namespace FluentValidation.Tests {
 			result.Errors.Count.ShouldEqual(1);
 		}
 
+		[Fact]
+		public void Allows_placeholders() {
+			validator.RuleFor(x => x.Forename).Custom((name, context) => {
+				context.MessageFormatter.AppendArgument("Foo", "1");
+				context.AddFailure("{Foo}");
+			});
+			var result = validator.Validate(new Person());
+			result.Errors.Single().ErrorMessage.ShouldEqual("1");
+		}
+
+		[Fact]
+		public void Allows_conditions() {
+			validator.RuleFor(x => x.Forename).Custom((name, ctx) => {
+				ctx.AddFailure("foo");
+			}).When(x => x.Age < 18);
+
+			var result = validator.Validate(new Person() {Age = 17});
+			result.IsValid.ShouldBeFalse();
+
+			result = validator.Validate(new Person() {Age = 18});
+			result.IsValid.ShouldBeTrue();
+		}
+
+		[Fact]
+		public async Task Allows_conditions_async() {
+			validator.RuleFor(x => x.Forename).CustomAsync((name, ctx, ct) => {
+				ctx.AddFailure("foo");
+				return Task.CompletedTask;
+			}).WhenAsync((x, ct) => Task.FromResult(x.Age < 18));
+
+			var result = await validator.ValidateAsync(new Person() {Age = 17});
+			result.IsValid.ShouldBeFalse();
+
+			result = await validator.ValidateAsync(new Person() {Age = 18});
+			result.IsValid.ShouldBeTrue();
+		}
+
 		private class NestedOrderValidator : AbstractValidator<Order> {
 			public NestedOrderValidator() {
 				RuleFor(x=>x).Custom((x, ctx) => {
-					ctx.AddFailure(ctx.ParentContext.PropertyChain.BuildPropertyName("Amount"), "bar");
+					ctx.AddFailure("Amount", "bar");
 				});
 			}
 		}

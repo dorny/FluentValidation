@@ -18,49 +18,23 @@
 
 namespace FluentValidation.Validators {
 	using System;
-	using Internal;
-	using Resources;
+	using System.Collections.Generic;
 
-	public class InclusiveBetweenValidator : PropertyValidator, IBetweenValidator {
-		public InclusiveBetweenValidator(IComparable from, IComparable to) {
-			To = to;
-			From = from;
+	/// <summary>
+	/// Performs range validation where the property value must be between the two specified values (inclusive).
+	/// </summary>
+	public class InclusiveBetweenValidator<T, TProperty> : RangeValidator<T, TProperty>, IInclusiveBetweenValidator {
 
-			if (to.CompareTo(from) == -1) {
-				throw new ArgumentOutOfRangeException(nameof(to), "To should be larger than from.");
-			}
+		public override string Name => "InclusiveBetweenValidator";
 
+		public InclusiveBetweenValidator(TProperty from, TProperty to, IComparer<TProperty> comparer) : base(from, to, comparer) {
 		}
 
-		public IComparable From { get; }
-		public IComparable To { get; }
-
-		protected override bool IsValid(PropertyValidatorContext context) {
-			var propertyValue = (IComparable)context.PropertyValue;
-
-			// If the value is null then we abort and assume success.
-			// This should not be a failure condition - only a NotNull/NotEmpty should cause a null to fail.
-			if (propertyValue == null) return true;
-
-			if (propertyValue.CompareTo(From) < 0 || propertyValue.CompareTo(To) > 0) {
-
-				context.MessageFormatter
-					.AppendArgument("From", From)
-					.AppendArgument("To", To)
-					.AppendArgument("Value", context.PropertyValue);
-
-				return false;
-			}
-			return true;
-		}
-
-		protected override string GetDefaultMessageTemplate() {
-			return Localized(nameof(InclusiveBetweenValidator));
+		protected override bool HasError(TProperty value) {
+			return Compare(value, From) < 0 || Compare(value, To) > 0;
 		}
 	}
 
-	public interface IBetweenValidator : IPropertyValidator {
-		IComparable From { get; }
-		IComparable To { get; }
-	}
+
+	public interface IInclusiveBetweenValidator : IBetweenValidator { }
 }

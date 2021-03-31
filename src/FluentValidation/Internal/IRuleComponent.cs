@@ -1,4 +1,5 @@
 #region License
+
 // Copyright (c) .NET Foundation and contributors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,35 +15,35 @@
 // limitations under the License.
 //
 // The latest version of this file can be found at https://github.com/FluentValidation/FluentValidation
+
 #endregion
 
-namespace FluentValidation.Resources {
-	using System;
+namespace FluentValidation.Internal {
 	using Validators;
 
 	/// <summary>
-	/// Represents a static string.
+	/// An individual component within a rule with a validator attached.
 	/// </summary>
-	[Obsolete("StaticStringSource is deprecated and will be removed in FluentValidation 10. Use a Func<PropertyValidatorContext, string> instead.")]
-	public class StaticStringSource : IStringSource {
-		readonly string _message;
-
-		internal string String => _message;
+	public interface IRuleComponent {
+		/// <summary>
+		/// Whether or not this validator has a condition associated with it.
+		/// </summary>
+		bool HasCondition { get; }
 
 		/// <summary>
-		/// Creates a new StringErrorMessageSource using the specified error message as the error template.
+		/// Whether or not this validator has an async condition associated with it.
 		/// </summary>
-		/// <param name="message">The error message template.</param>
-		public StaticStringSource(string message) {
-			_message = message;
-		}
+		bool HasAsyncCondition { get; }
 
 		/// <summary>
-		/// Construct the error message template
+		/// The validator associated with this component.
 		/// </summary>
-		/// <returns>Error message template</returns>
-		public string GetString(ICommonContext context) {
-			return _message;
-		}
+		IPropertyValidator Validator { get; }
+
+		/// <summary>
+		/// Gets the raw unformatted error message. Placeholders will not have been rewritten.
+		/// </summary>
+		/// <returns></returns>
+		string GetUnformattedErrorMessage();
 	}
 }

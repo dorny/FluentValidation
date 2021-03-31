@@ -24,12 +24,12 @@ namespace FluentValidation.AspNetCore {
 	using Validators;
 
 	internal class StringLengthClientValidator : ClientValidatorBase {
-		public StringLengthClientValidator(PropertyRule rule, IPropertyValidator validator)
-			: base(rule, validator) {
+		public StringLengthClientValidator(IValidationRule rule, IRuleComponent component)
+			: base(rule, component) {
 		}
 
 		public override void AddValidation(ClientModelValidationContext context) {
-			var lengthVal = (LengthValidator)Validator;
+			var lengthVal = (ILengthValidator)Validator;
 
 			MergeAttribute(context.Attributes, "data-val", "true");
 			MergeAttribute(context.Attributes, "data-val-length", GetErrorMessage(lengthVal, context));
@@ -37,7 +37,7 @@ namespace FluentValidation.AspNetCore {
 			MergeAttribute(context.Attributes, "data-val-length-min", lengthVal.Min.ToString());
 		}
 
-		private string GetErrorMessage(LengthValidator lengthVal, ClientModelValidationContext context) {
+		private string GetErrorMessage(ILengthValidator lengthVal, ClientModelValidationContext context) {
 			var cfg = context.ActionContext.HttpContext.RequestServices.GetValidatorConfiguration();
 
 			var formatter = cfg.MessageFormatterFactory()
@@ -47,18 +47,10 @@ namespace FluentValidation.AspNetCore {
 
 			string message;
 			try {
-				message = lengthVal.Options.GetErrorMessageTemplate(null);
-			}
-			catch (FluentValidationMessageFormatException) {
-				if (lengthVal is ExactLengthValidator) {
-					message = cfg.LanguageManager.GetString("ExactLength_Simple");
-				}
-				else {
-					message = cfg.LanguageManager.GetString("Length_Simple");
-				}
+				message = Component.GetUnformattedErrorMessage();
 			}
 			catch (NullReferenceException) {
-				if (lengthVal is ExactLengthValidator) {
+				if (lengthVal is IExactLengthValidator) {
 					message = cfg.LanguageManager.GetString("ExactLength_Simple");
 				}
 				else {
@@ -68,7 +60,7 @@ namespace FluentValidation.AspNetCore {
 
 
 			if (message.Contains("{TotalLength}")) {
-				if (lengthVal is ExactLengthValidator) {
+				if (lengthVal is IExactLengthValidator) {
 					message = cfg.LanguageManager.GetString("ExactLength_Simple");
 				}
 				else {

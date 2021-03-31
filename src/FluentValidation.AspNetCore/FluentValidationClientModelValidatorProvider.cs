@@ -25,12 +25,9 @@ namespace FluentValidation.AspNetCore {
 	using FluentValidation.Internal;
 	using FluentValidation.Validators;
 	using Microsoft.AspNetCore.Http;
-#if NETCOREAPP2_1 || NETCOREAPP2_2
-	using Microsoft.AspNetCore.Mvc.DataAnnotations.Internal;
-#else
 	using Microsoft.AspNetCore.Mvc.DataAnnotations;
-#endif
-	public delegate IClientModelValidator FluentValidationClientValidatorFactory(ClientValidatorProviderContext context, PropertyRule rule, IPropertyValidator validator);
+
+	public delegate IClientModelValidator FluentValidationClientValidatorFactory(ClientValidatorProviderContext context, IValidationRule rule, IRuleComponent component);
 
 	/// <summary>
 	/// Used to generate clientside metadata from FluentValidation's rules.
@@ -39,33 +36,20 @@ namespace FluentValidation.AspNetCore {
 		private readonly IHttpContextAccessor _httpContextAccessor;
 		private readonly ValidatorDescriptorCache _descriptorCache = new ValidatorDescriptorCache();
 
-		public Dictionary<Type, FluentValidationClientValidatorFactory> ClientValidatorFactories => _validatorFactories;
-
-		private readonly Dictionary<Type, FluentValidationClientValidatorFactory> _validatorFactories = new Dictionary<Type, FluentValidationClientValidatorFactory>() {
-			{ typeof(NotNullValidator), (context, rule, validator) => new RequiredClientValidator(rule, validator) },
-			{ typeof(INotNullValidator), (context, rule, validator) => new RequiredClientValidator(rule, validator) },
-
-			{ typeof(NotEmptyValidator), (context, rule, validator) => new RequiredClientValidator(rule, validator) },
-			{ typeof(INotEmptyValidator), (context, rule, validator) => new RequiredClientValidator(rule, validator) },
-
-#pragma warning disable 618
-			{ typeof(EmailValidator), (context, rule, validator) => new EmailClientValidator(rule, validator) },
-#pragma warning restore 618
-			{ typeof(AspNetCoreCompatibleEmailValidator), (context, rule, validator) => new EmailClientValidator(rule, validator) },
-			{ typeof(IEmailValidator), (context, rule, validator) => new EmailClientValidator(rule, validator) },
-
-			{ typeof(RegularExpressionValidator), (context, rule, validator) => new RegexClientValidator(rule, validator) },
-			{ typeof(IRegularExpressionValidator), (context, rule, validator) => new RegexClientValidator(rule, validator) },
-
-			{ typeof(MaximumLengthValidator), (context, rule, validator) => new MaxLengthClientValidator(rule, validator) },
-			{ typeof(MinimumLengthValidator), (context, rule, validator) => new MinLengthClientValidator(rule, validator) },
-			{ typeof(LengthValidator), (context, rule, validator) => new StringLengthClientValidator(rule, validator)},
-			{ typeof(ExactLengthValidator), (context, rule, validator) => new StringLengthClientValidator(rule, validator)},
-			{ typeof(InclusiveBetweenValidator), (context, rule, validator) => new RangeClientValidator(rule, validator) },
-			{ typeof(GreaterThanOrEqualValidator), (context, rule, validator) => new RangeMinClientValidator(rule, validator) },
-			{ typeof(LessThanOrEqualValidator), (context, rule, validator) => new RangeMaxClientValidator(rule, validator) },
-			{ typeof(EqualValidator), (context, rule, validator) => new EqualToClientValidator(rule, validator) },
-			{ typeof(CreditCardValidator), (context, rule, validator) => new CreditCardClientValidator(rule, validator) },
+		public Dictionary<Type, FluentValidationClientValidatorFactory> ClientValidatorFactories { get; } = new() {
+			{ typeof(INotNullValidator), (context, rule, component) => new RequiredClientValidator(rule, component) },
+			{ typeof(INotEmptyValidator), (context, rule, component) => new RequiredClientValidator(rule, component) },
+			{ typeof(IEmailValidator), (context, rule, component) => new EmailClientValidator(rule, component) },
+			{ typeof(IRegularExpressionValidator), (context, rule, component) => new RegexClientValidator(rule, component) },
+			{ typeof(IMaximumLengthValidator), (context, rule, component) => new MaxLengthClientValidator(rule, component) },
+			{ typeof(IMinimumLengthValidator), (context, rule, component) => new MinLengthClientValidator(rule, component) },
+			{ typeof(IExactLengthValidator), (context, rule, component) => new StringLengthClientValidator(rule, component)},
+			{ typeof(ILengthValidator), (context, rule, component) => new StringLengthClientValidator(rule, component)},
+			{ typeof(IInclusiveBetweenValidator), (context, rule, component) => new RangeClientValidator(rule, component) },
+			{ typeof(IGreaterThanOrEqualValidator), (context, rule, component) => new RangeMinClientValidator(rule, component) },
+			{ typeof(ILessThanOrEqualValidator), (context, rule, component) => new RangeMaxClientValidator(rule, component) },
+			{ typeof(IEqualValidator), (context, rule, component) => new EqualToClientValidator(rule, component) },
+			{ typeof(ICreditCardValidator), (context, rule, component) => new CreditCardClientValidator(rule, component) },
 		};
 
 		public FluentValidationClientModelValidatorProvider(IHttpContextAccessor httpContextAccessor) {
@@ -76,7 +60,7 @@ namespace FluentValidation.AspNetCore {
 			if (validatorType == null) throw new ArgumentNullException(nameof(validatorType));
 			if (factory == null) throw new ArgumentNullException(nameof(factory));
 
-			_validatorFactories[validatorType] = factory;
+			ClientValidatorFactories[validatorType] = factory;
 		}
 
 		public void CreateValidators(ClientValidatorProviderContext context) {
@@ -86,13 +70,12 @@ namespace FluentValidation.AspNetCore {
 				var propertyName = context.ModelMetadata.PropertyName;
 
 				var validatorsWithRules = from rule in descriptor.GetRulesForMember(propertyName)
-					let propertyRule = (PropertyRule) rule
-					where !propertyRule.HasCondition && !propertyRule.HasAsyncCondition
-					let validators = rule.Validators
-					where validators.Any()
-					from propertyValidator in validators
-					where !propertyValidator.Options.HasCondition && !propertyValidator.Options.HasAsyncCondition
-					let modelValidatorForProperty = GetModelValidator(context, propertyRule, propertyValidator)
+					where !rule.HasCondition && !rule.HasAsyncCondition
+					let components = rule.Components
+					where components.Any()
+					from component in components
+					where !component.HasCondition && !component.HasAsyncCondition
+					let modelValidatorForProperty = GetModelValidator(context, rule, component)
 					where modelValidatorForProperty != null
 					select modelValidatorForProperty;
 
@@ -133,10 +116,10 @@ namespace FluentValidation.AspNetCore {
 			}
 		}
 
-		protected virtual IClientModelValidator GetModelValidator(ClientValidatorProviderContext context, PropertyRule rule, IPropertyValidator propertyValidator)	{
-			var type = propertyValidator.GetType();
+		protected virtual IClientModelValidator GetModelValidator(ClientValidatorProviderContext context, IValidationRule rule, IRuleComponent component)	{
+			var type = component.Validator.GetType();
 
-			var factory = _validatorFactories
+			var factory = ClientValidatorFactories
 				.Where(x => x.Key.IsAssignableFrom(type))
 				.Select(x => x.Value)
 				.FirstOrDefault();
@@ -144,12 +127,12 @@ namespace FluentValidation.AspNetCore {
 			if (factory != null) {
 				var ruleSetToGenerateClientSideRules = RuleSetForClientSideMessagesAttribute.GetRuleSetsForClientValidation(_httpContextAccessor?.HttpContext);
 				bool executeDefaultRule = ruleSetToGenerateClientSideRules.Contains(RulesetValidatorSelector.DefaultRuleSetName, StringComparer.OrdinalIgnoreCase)
-          && (rule.RuleSets.Length == 0 || rule.RuleSets.Contains(RulesetValidatorSelector.DefaultRuleSetName, StringComparer.OrdinalIgnoreCase));
+          && (rule.RuleSets == null || rule.RuleSets.Length == 0 || rule.RuleSets.Contains(RulesetValidatorSelector.DefaultRuleSetName, StringComparer.OrdinalIgnoreCase));
 
-				bool shouldExecute = ruleSetToGenerateClientSideRules.Intersect(rule.RuleSets, StringComparer.OrdinalIgnoreCase).Any() || executeDefaultRule;
+				bool shouldExecute = (rule.RuleSets != null && ruleSetToGenerateClientSideRules.Intersect(rule.RuleSets, StringComparer.OrdinalIgnoreCase).Any()) || executeDefaultRule;
 
 				if (shouldExecute) {
-					return factory.Invoke(context, rule, propertyValidator);
+					return factory.Invoke(context, rule, component);
 				}
 			}
 

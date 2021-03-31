@@ -19,6 +19,7 @@
 #pragma warning disable 1591
 namespace FluentValidation.TestHelper {
 	using System;
+	using System.Collections;
 	using System.Collections.Generic;
 	using System.Linq;
 	using System.Linq.Expressions;
@@ -32,6 +33,9 @@ namespace FluentValidation.TestHelper {
 
 	public static class ValidationTestExtension {
 		internal const string MatchAnyFailure = "__FV__ANY";
+#pragma warning disable 618
+
+		// TODO: Look at deprecating these methods in favour of TestValidate for FV 11.
 
 		public static IEnumerable<ValidationFailure> ShouldHaveValidationErrorFor<T, TValue>(this IValidator<T> validator,
 			Expression<Func<T, TValue>> expression, TValue value, string ruleSet = null) where T : class, new() {
@@ -98,11 +102,10 @@ namespace FluentValidation.TestHelper {
 		}
 
 		public static async Task ShouldNotHaveValidationErrorForAsync<T, TValue>(this IValidator<T> validator, Expression<Func<T, TValue>> expression, T objectToTest, CancellationToken cancellationToken = default, string ruleSet = null) where T : class {
-			var value = expression.Compile()(objectToTest);
 			var testValidationResult = await validator.TestValidateAsync(objectToTest, cancellationToken, ruleSet);
 			testValidationResult.ShouldNotHaveValidationErrorFor(expression);
 		}
-
+#pragma warning restore 618
 
 		public static void ShouldHaveChildValidator<T, TProperty>(this IValidator<T> validator, Expression<Func<T, TProperty>> expression, Type childValidatorType) {
 			var descriptor = validator.CreateDescriptor();
@@ -113,8 +116,10 @@ namespace FluentValidation.TestHelper {
 			}
 
 			var matchingValidators =
-				expression.IsParameterExpression()	 ? GetModelLevelValidators(descriptor) :
-				descriptor.GetValidatorsForMember(expressionMemberName).ToArray();
+				expression.IsParameterExpression() ? GetModelLevelValidators<T>(descriptor) :
+				descriptor.GetValidatorsForMember(expressionMemberName)
+					.Select(x => x.Validator)
+					.ToArray();
 
 
 			matchingValidators = matchingValidators.Concat(GetDependentRules(expressionMemberName, expression, descriptor)).ToArray();
@@ -129,20 +134,26 @@ namespace FluentValidation.TestHelper {
 
 		private static IEnumerable<IPropertyValidator> GetDependentRules<T, TProperty>(string expressionMemberName, Expression<Func<T, TProperty>> expression, IValidatorDescriptor descriptor) {
 			var member = expression.IsParameterExpression() ? null : expressionMemberName;
-			var rules = descriptor.GetRulesForMember(member).OfType<PropertyRule>().SelectMany(x => x.DependentRules)
-				.SelectMany(x => x.Validators);
+
+			var rules = descriptor.GetRulesForMember(member)
+				.OfType<IValidationRuleInternal<T>>()
+				.SelectMany(x => x.DependentRules ?? Enumerable.Empty<IValidationRuleInternal<T>>())
+				.SelectMany(x => x.Components)
+				.Select(x => x.Validator);
 
 			return rules;
 		}
 
-		private static IPropertyValidator[] GetModelLevelValidators(IValidatorDescriptor descriptor) {
-			var rules = descriptor.GetRulesForMember(null).OfType<PropertyRule>();
-			return rules.Where(x => x.Expression == null || x.Expression.IsParameterExpression()).SelectMany(x => x.Validators)
+		private static IPropertyValidator[] GetModelLevelValidators<T>(IValidatorDescriptor descriptor) {
+			var rules = descriptor.GetRulesForMember(null).OfType<IValidationRule<T>>();
+			return rules.Where(x => x.Expression == null || x.Expression.IsParameterExpression())
+				.SelectMany(x => x.Components)
+				.Select(x => x.Validator)
 				.ToArray();
 		}
 
-		// TODO: For FV10, remove the default null form the ruleset parameter, and mark this method as obsolete.
-		public static TestValidationResult<T> TestValidate<T>(this IValidator<T> validator, T objectToTest, string ruleSet = null) where T : class {
+		[Obsolete("Use the overload that takes an Action<ValidationStrategy> instead, which allows the ruleset to be specified inside the delegate.")]
+		public static TestValidationResult<T> TestValidate<T>(this IValidator<T> validator, T objectToTest, string ruleSet) where T : class {
 			return validator.TestValidate(objectToTest, options => {
 				if (ruleSet != null) {
 					options.IncludeRuleSets(RulesetValidatorSelector.LegacyRulesetSplit(ruleSet));
@@ -150,8 +161,8 @@ namespace FluentValidation.TestHelper {
 			});
 		}
 
-		// TODO: For FV10, remove the default null form the ruleset parameter, and mark this method as obsolete.
-		public static async Task<TestValidationResult<T>> TestValidateAsync<T>(this IValidator<T> validator, T objectToTest, CancellationToken cancellationToken = default, string ruleSet = null) where T : class {
+		[Obsolete("Use the overload that takes an Action<ValidationStrategy> instead, which allows the ruleset to be specified inside the delegate.")]
+		public static async Task<TestValidationResult<T>> TestValidateAsync<T>(this IValidator<T> validator, T objectToTest, CancellationToken cancellationToken, string ruleSet) where T : class {
 			return await validator.TestValidateAsync(objectToTest, options => {
 				if (ruleSet != null) {
 					options.IncludeRuleSets(RulesetValidatorSelector.LegacyRulesetSplit(ruleSet));
@@ -159,14 +170,20 @@ namespace FluentValidation.TestHelper {
 			}, cancellationToken);
 		}
 
-		// TODO: For FV10, Add a default of null to the options parameter.
-		public static TestValidationResult<T> TestValidate<T>(this IValidator<T> validator, T objectToTest, Action<ValidationStrategy<T>> options) where T : class {
+		/// <summary>
+		/// Performs validation, returning a TestValidationResult which allows assertions to be performed.
+		/// </summary>
+		public static TestValidationResult<T> TestValidate<T>(this IValidator<T> validator, T objectToTest, Action<ValidationStrategy<T>> options = null) where T : class {
+			options ??= _ => { };
 			var validationResult = validator.Validate(objectToTest, options);
 			return new TestValidationResult<T>(validationResult);
 		}
 
-		// TODO: For FV10, Add a default of null to the options parameter.
-		public static async Task<TestValidationResult<T>> TestValidateAsync<T>(this IValidator<T> validator, T objectToTest, Action<ValidationStrategy<T>> options, CancellationToken cancellationToken = default) where T : class {
+		/// <summary>
+		/// Performs async validation, returning a TestValidationResult which allows assertions to be performed.
+		/// </summary>
+		public static async Task<TestValidationResult<T>> TestValidateAsync<T>(this IValidator<T> validator, T objectToTest, Action<ValidationStrategy<T>> options = null, CancellationToken cancellationToken = default) where T : class {
+			options ??= _ => { };
 			var validationResult = await validator.ValidateAsync(objectToTest, options, cancellationToken);
 			return new TestValidationResult<T>(validationResult);
 		}
@@ -278,8 +295,8 @@ namespace FluentValidation.TestHelper {
 			return failures.When(failure => failure.Severity == expectedSeverity, string.Format("Expected a severity of '{0}'. Actual severity was '{{Severity}}'", expectedSeverity));
 		}
 
-		public static IEnumerable<ValidationFailure> WithCustomState(this IEnumerable<ValidationFailure> failures, object expectedCustomState) {
-			return failures.When(failure => failure.CustomState == expectedCustomState, string.Format("Expected custom state of '{0}'. Actual state was '{{State}}'", expectedCustomState));
+		public static IEnumerable<ValidationFailure> WithCustomState(this IEnumerable<ValidationFailure> failures, object expectedCustomState, IEqualityComparer comparer = null) {
+			return failures.When(failure => comparer?.Equals(failure.CustomState, expectedCustomState) ?? Equals(failure.CustomState, expectedCustomState), string.Format("Expected custom state of '{0}'. Actual state was '{{State}}'", expectedCustomState));
 		}
 
     public static IEnumerable<ValidationFailure> WithMessageArgument<T>(this IEnumerable<ValidationFailure> failures, string argumentKey, T argumentValue) {
