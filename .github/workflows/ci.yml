@@ -5,6 +5,7 @@ on:
     branches:
     - main
     - 9.x
+    - ci-test
   pull_request:
     branches:
       - main
