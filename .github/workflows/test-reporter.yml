@@ -16,4 +16,3 @@ jobs:
         name: Test Report $1
         path: '**/*.trx'
         reporter: dotnet-trx
-        list-tests: failed
